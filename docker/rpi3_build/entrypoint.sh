@@ -44,4 +44,8 @@ patch -p1 -r - -Nti /patches/darknetz.patch
 
 # Perform build
 cd /optee/build
-make -j$(nproc)
+if [ ! -z "$NPROC" ]; then
+    make -j$NPROC
+else
+    make -j$(nproc)
+fi

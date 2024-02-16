@@ -22,6 +22,8 @@ This will also create a docker volume called `cache` to speed up subsequent buil
 
 If you do not care about building from scratch every single time, you can simply omit the `-v cache:/optee` from the run command above.
 
+By default, make will run with job processes equal to the number of cores on your computer. You can manually set the number of processes my adding `-e NPROC=1` to the docker run command where 1 is the number of processes
+
 ## Flashing
 
 To flash the image to an SD card, you should **first make sure you have the right device file for it.** `dd` will not hesitate to destroy your computer's hard drive if you use it for the `of=` field. Use the command below (and some common sense) to make sure you know which device is your SD card. The easiest way to tell is usually by size.
