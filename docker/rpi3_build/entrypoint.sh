@@ -5,6 +5,7 @@ cd /optee
 # Sync OP-TEE git repos and initialize if they don't already exist
 if ! repo sync --no-clone-bundle; then
     repo init -u https://github.com/OP-TEE/manifest.git -m rpi3.xml
+    patch -p1 -r - -Nti /patches/repo.patch
     repo sync --no-clone-bundle
 else
     echo "OP-TEE repo already initialized"
