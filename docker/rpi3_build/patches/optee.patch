@@ -1,0 +1,58 @@
+--- /.repo/manifests/rpi3.xml	2024-02-15 07:41:16.052304445 +0000
++++ /.repo/manifests/rpi3.xml	2024-02-15 07:58:23.682904503 +0000
+@@ -11,7 +11,7 @@
+         <project path="linux"                name="linaro-swg/linux.git"                  revision="rpi3-optee-6.7" clone-depth="1" />
+ 
+         <!-- Misc gits -->
+-        <project path="firmware"             name="raspberrypi/firmware.git"              revision="refs/tags/1.20190401" clone-depth="1" />
++        <project path="firmware"             name="raspberrypi/firmware.git"              revision="refs/tags/1.20230405" clone-depth="1" />
+         <project path="trusted-firmware-a"   name="TF-A/trusted-firmware-a.git"           revision="refs/tags/v2.6" clone-depth="1" remote="tfo"/>
+         <project path="u-boot"               name="u-boot/u-boot.git"                     revision="refs/tags/v2021.10" clone-depth="1" />
+ </manifest>
+--- /build/rpi3/firmware/uboot.env.txt	2024-02-15 07:42:02.440407075 +0000
++++ /build/rpi3/firmware/uboot.env.txt	2024-02-15 08:00:10.003306604 +0000
+@@ -28,8 +28,9 @@
+ preboot=usb start
+ bootcmd=run mmcboot
+ load_kernel=fatload mmc 0:1 ${kernel_addr_r} kernel8.img
+-mmcboot=run load_kernel; run set_bootargs_tty set_bootargs_mmc set_common_args; run boot_it
+-nfsboot=run load_kernel; run set_bootargs_tty set_bootargs_nfs set_common_args; run boot_it
++load_fdt=fatload mmc 0:1 ${fdt_addr_r} bcm2710-rpi-3-b-plus.dtb
++mmcboot=run load_fdt; run load_kernel; run set_bootargs_tty set_bootargs_mmc set_common_args; run boot_it
++nfsboot=run load_fdt; run load_kernel; run set_bootargs_tty set_bootargs_nfs set_common_args; run boot_it
+ set_bootargs_tty=setenv bootargs console=${ttyconsole} console=${sttyconsole},${baudrate}
+ set_bootargs_nfs=setenv bootargs ${bootargs} root=/dev/nfs rw rootfstype=nfs nfsroot=${nfsserverip}:${nfspath},udp,vers=3 ip=dhcp
+ set_bootargs_mmc=setenv bootargs ${bootargs} root=/dev/mmcblk0p2 rw rootfs=ext4
+--- /optee_os/core/arch/arm/plat-rpi3/conf.mk	2024-02-15 07:42:15.244435473 +0000
++++ /optee_os/core/arch/arm/plat-rpi3/conf.mk	2024-02-15 08:13:22.497769023 +0000
+@@ -5,8 +5,8 @@
+ CFG_SHMEM_START ?= 0x08000000
+ CFG_SHMEM_SIZE ?= 0x00400000
+ CFG_TZDRAM_START ?= 0x10100000
+-CFG_TZDRAM_SIZE ?= 0x00F00000
+-CFG_TEE_RAM_VA_SIZE ?= 0x00700000
++CFG_TZDRAM_SIZE ?= 0x04000000
++CFG_TEE_RAM_VA_SIZE ?= 0x00200000
+ 
+ $(call force,CFG_8250_UART,y)
+ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
+--- /optee_os/core/include/mm/pgt_cache.h	2024-02-15 07:42:15.320435641 +0000
++++ /optee_os/core/include/mm/pgt_cache.h	2024-02-15 08:17:34.474455928 +0000
+@@ -44,6 +44,7 @@
+  * possibly others. The value is based on the number of threads as an indicator
+  * on how large the system might be.
+  */
++#ifdef CFG_WITH_PAGER
+ #if CFG_NUM_THREADS < 2
+ #define PGT_CACHE_SIZE	4
+ #elif (CFG_NUM_THREADS == 2 && !defined(CFG_WITH_LPAE))
+@@ -51,6 +52,9 @@
+ #else
+ #define PGT_CACHE_SIZE	ROUNDUP(CFG_NUM_THREADS * 2, PGT_NUM_PGT_PER_PAGE)
+ #endif
++#else
++#define PGT_CACHE_SIZE  32
++#endif
+ 
+ SLIST_HEAD(pgt_cache, pgt);
+ struct user_mode_ctx;

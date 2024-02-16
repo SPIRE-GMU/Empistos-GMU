@@ -1,0 +1,39 @@
+--- /optee_examples/darknetz/host/examples/classifier.c	2024-02-15 08:22:29.135236438 +0000
++++ /optee_examples/darknetz/host/examples/classifier.c	2024-02-15 08:23:06.131333260 +0000
+@@ -750,8 +750,6 @@
+ 
+                 top_k(predictions, net->outputs, top, indexes);
+ 
+-                free(net_output_back);
+-
+                 struct rusage usage;
+                 struct timeval startu, endu, starts, ends;
+ 
+@@ -810,7 +808,8 @@
+                 getMemory(output_file);
+ 
+                 fclose(output_file);
+-
++                free(net_output_back);
++                
+                 if(r.data != im.data) free_image(r);
+                 free_image(im);
+                 if (filename) break;
+--- /optee_examples/darknetz/ta/parser_TA.c	2024-02-15 07:42:48.252508811 +0000
++++ /optee_examples/darknetz/ta/parser_TA.c.fix	2024-02-15 08:25:45.015746938 +0000
+@@ -65,7 +65,7 @@
+     // decrypt
+     float *tempvec = malloc(length*sizeof(float));
+     copy_cpu_TA(length, vec, 1, tempvec, 1);
+-    aes_cbc_TA("decrypt", tempvec, length);
++    // aes_cbc_TA("decrypt", tempvec, length);
+ 
+     // copy
+     layer_TA l = netta.layers[layer_i];
+@@ -122,5 +122,5 @@
+     }
+ 
+     // remove the on-device encryption for FL
+-    aes_cbc_TA("encrypt", weights_encrypted, length);
++    // aes_cbc_TA("encrypt", weights_encrypted, length);
+ }
