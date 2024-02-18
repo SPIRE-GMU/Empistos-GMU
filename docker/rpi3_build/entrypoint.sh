@@ -47,5 +47,5 @@ cd /optee/build
 if [ ! -z "$NPROC" ]; then
     make -j$NPROC
 else
-    make -j$(nproc)
+    make
 fi

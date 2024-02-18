@@ -22,7 +22,7 @@ This will also create a docker volume called `cache` to speed up subsequent buil
 
 If you do not care about building from scratch every single time, you can simply omit the `-v cache:/optee` from the run command above.
 
-By default, make will run with job processes equal to the number of cores on your computer. You can manually set the number of processes my adding `-e NPROC=1` to the docker run command where 1 is the number of processes
+By default, make will run with 1 job process. For some reason when OP-TEE is built with more than one process, [the resulting image simply doesn't work.](https://github.com/OP-TEE/optee_os/issues/6284#issuecomment-1758781141) You can manually set the number of processes my adding `-e NPROC=1` to the docker run command where 1 is the number of processes
 
 ## Flashing
 
