@@ -37,3 +37,45 @@ Once you are ready, run the below command to begin the flashing process. Replace
 ```bash
 sudo dd if=./out/rpi3-sdcard.img of=/dev/something bs=1024k conv=fsync status=progress
 ```
+
+## Resizing Root Filesystem
+
+By default, buildroot will generate an image with a root filesystem of only **268 MB**, this can be a problem for people wanting to import large datasets.
+
+```text
+Number  Start   End     Size    Type     File system  Flags
+ 1      1049kB  67.1MB  66.1MB  primary  fat16        boot, lba
+ 2      68.2MB  337MB   268MB   primary  ext4
+```
+
+To expand the filesystem after flashing you must first expand the partition, and then the filesystem itself.
+
+`resize2fs` **requires the partition device and not the regular device.** For example, `/dev/sdb2` instead of if `/dev/sdb` was the SD card device for the second partition.
+
+```bash
+# Unmount all mounted partitions on device
+sudo umount /dev/something*
+
+# Resize root filesystem partition to 100% of remaining space on SD card
+sudo parted -s /dev/something resizepart 2 100%
+
+# Check and resize ext4 filesystem to fill new space
+sudo e2fsck -f /dev/something2
+sudo resize2fs /dev/something2
+```
+
+### (Ubuntu 22.04 Host) Outdated e2fsprogs
+
+Buildroot appears to create the ext4 filesystem with a newer version of e2fsprogs than what Ubuntu has in the 22.04 repository, leading to this message:
+
+```text
+resize2fs 1.46.5 (30-Dec-2021)                                                                                                                                                               
+resize2fs: Filesystem has unsupported feature(s) (/dev/sdc2)
+```
+
+The fastest way around this is to leverage docker like so (remember to replace `/dev/something2`):
+
+```bash
+docker run -it --rm --privileged -v /dev/something2:/disk ubuntu:rolling \
+bash -c "e2fsck -f /disk && resize2fs /disk"
+```
