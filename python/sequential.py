@@ -1,38 +1,50 @@
-import layers
+import layers as lay
 import os
 import json
 
 class Sequential:
-    def __init__(self, layers=None):
+    def __init__(self, name: str = "network", layers: list[lay.Layer] = None):
         self._layers = []
+        self.name = name
+        self._split = (False, 0)
 
         if layers is not None:
             if isinstance(layers, list):
-                for l in layers:
-                    self.add(l)
+                for index, layer in enumerate(layers):
+                    self.add(layer)
+                    if isinstance(layer, lay.Split):
+                        if isinstance(layers[index - 1], (lay.Dropout, lay.Cost)): raise IndexError("Can't Split after Dropout or Cost Layer")
+                        self._split = (True, index)
+                        layer.previouslayer = layers[index - 1]
             else:
                 raise TypeError("layers argument must be a list of Layer subclass objects")        
 
-    def add(self, layer, index: int = None):
-        if issubclass(type(layer), layers.Layer):
-            self._layers.append(layer) if index is None else self._layers.insert(index, layer)
+    def add(self, layer: lay.Layer, index: int = None):
+        if index is None: index = len(self._layers)
+        if issubclass(type(layer), lay.Layer):
+            if isinstance(layer, lay.Split):
+                if isinstance(self._layers[index - 1], (lay.Dropout, lay.Cost)): raise IndexError("Can't Split after Dropout or Cost Layer")
+                self._split = (True, index)
+            self._layers.insert(index, layer)
         else:
             raise TypeError("layer is not a Layer subclass instance")
         
     def pop(self, index: int = None):
         try:
-            self._layers.pop(index if index is not None else len(self._layers))
+            layer = self._layers.pop(index if index is not None else len(self._layers) - 1)
+            if isinstance(layer, lay.Split):
+                self._split = (False, 0)
         except IndexError:
             raise TypeError("no layers in model or index out of bounds")
 
-    def tojson(self):
+    def __tojson(self, layers: list[lay.Layer]) -> list:
         result = []
-        for layer in self._layers:
+        for layer in layers:
             result.append(layer.tojson())
-        return json.dumps(result, indent = 3)
+        return result
     
     def __str__(self):
-        return json.loads(self.tojson())
+        return json.dumps(self.__tojson(self._layers), indent = 3)
     
     def labels(self, labels: list[str]):
         self._labels = labels
@@ -45,41 +57,74 @@ class Sequential:
         return labels
         
     
-    def savemodel(self, name: str = "network", results: int = 3):
-        # if not name.endswith(".cfg"):
-        #     name = f"{name}.cfg"
-        with open(f"{name}.json", 'w') as f:
-            f.write(self.tojson())
+    def savemodel(self, name: str = "network"):
+        split, index = self._split
+        if split:
+            clients = self._layers[index].clients
+            server = self._layers[:index + 1]
+            for count, client in enumerate(clients):
+                with open(f'{name}{count + 1}.json', 'w') as f:
+                    self._layers[index].clients = client
+                    f.write(json.dumps(self.__tojson(self._layers[index:]), indent = 3))
+            server[index].send = True
+            server[index].clients = clients
+            with open(f"{name}.json", 'w') as f:
+                f.write(json.dumps(self.__tojson(server), indent = 3))
+        with open(f'{name}' + '_master.json' if split else '.json', 'w') as f:
+            f.write(json.dumps(self.__tojson(self._layers), indent = 3))
+        
+    # def savemetadata(self, name: str = "network", datapath = 'data/', results: int = 3):
+    #     dictionary = {}
+    #     dictionary['classes'] = self._layers[-2]._groups
+    #     dictionary['train'] = f'{datapath}train_{name}.json'
+    #     dictionary['valid'] = f'{datapath}test_{name}.json'
+    #     dictionary['labels'] = f'{datapath}labels_{name}.json'
+    #     dictionary['names'] = f'{datapath}names_{name}.json'
+    #     dictionary['backup'] = f'models/{name}'
+    #     dictionary['top'] = results
+
+    #     with open(f"{name}_metadata.json", 'w') as f:
+    #         f.write(json.dumps(dictionary, indent = 3))
+
+    def makelabels(self, name: str = "network", labels: list = None):
+        with open(f"{name}_labels.list", 'w') as f:
+            for label in labels:
+                f.write(f'{label}\n')
+
+    def makenames(self, name: str = "network", names: list = None):
+        with open(f"names_{name}.list", 'w') as f:
+            for n in names:
+                f.write(f'{n}\n')
+
+    def savemetadata(self, name: str = "network", datapath: str = 'data/', results: int = 3):
         with open(f"{name}.dataset", 'w') as f:
             f.write(f'classes = {self._layers[-2]._groups}\n')
-            f.write(f"train = train_{name}.list\n")
-            f.write(f'valid = test_{name}.list\n')
-            f.write(f'labels = labels_{name}.list\n')
-            f.write(f'names = names_{name}.list\n')
-            f.write(f'backup = models/{name}\n')
+            f.write(f"train = {datapath + name}_train.list\n")
+            f.write(f'valid = {datapath + name}_test.list\n')
+            f.write(f'labels = {datapath + name}labels.list\n')
+            f.write(f'names = {datapath + name}names.list\n')
+            f.write(f'backup = {datapath}models/{name}\n')
             f.write(f'top = {results}\n')
-
-    
-    
+            
     @staticmethod
-    def __getlayertype(layer: layers.Layer):
+    def __getlayertype(layer: str):
         match layer:
-            case "[net]":
-                return layers.Input
-            case "[connected]":
-                return layers.Dense
-            case "[maxpool]":
-                return layers.MaxPooling2D
-            case "[convolutional]":
-                return layers.Conv2D
-            case "[dropout]":
-                return layers.Dropout
-            case "[softmax]":
-                return layers.Softmax
-            case "[cost]":
-                return layers.Cost
-            case "[avgpool]":
-                return layers.AveragePooling2D
+            case "net":
+                return lay.Input
+            case "connected":
+                return lay.Dense
+            case "maxpool":
+                return lay.MaxPooling2D
+            case "convolutional":
+                return lay.Conv2D
+            case "dropout":
+                return lay.Dropout
+            case "softmax":
+                return lay.Softmax
+            case "cost":
+                return lay.Cost
+            case "avgpool":
+                return lay.AveragePooling2D
 
     @staticmethod        
     def __formatarguments(arguments: dict):
@@ -114,20 +159,10 @@ class Sequential:
     def loadmodel(model: str):
         layers = []
         with open(model, 'r') as f:
-            line = f.readline()
-            while True:
-                if line.startswith('[') and line.endswith(']\n'):
-                    layertype = Sequential.__getlayertype((line[:-1]))
-                    line = f.readline()
-                    arguments = {}
-                    while line and not line.startswith('['):
-                        if line == '\n':
-                            line = f.readline()
-                            continue
-                        arg = line.split('=')
-                        arguments[arg[0].strip()] = Sequential.__parseargument(arg[1].strip())
-                        line = f.readline()
-                    arguments = Sequential.__formatarguments(arguments)
-                    layers.append(layertype(**arguments))
-                if not line: break
-        return Sequential(layers)        
+            arguments = json.load(f)
+            for layer in arguments:
+                layertype = Sequential.__getlayertype(layer['layer'])
+                layer.pop('layer')
+                layer = Sequential.__formatarguments(layer)
+                layers.append(layertype(**layer))
+        return Sequential(layers = layers)        

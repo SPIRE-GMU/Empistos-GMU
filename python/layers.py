@@ -8,12 +8,15 @@ class Layer:
         self._activation = act.Activation(activation).value
         self._neurons = units
 
-    def tojson(self) -> {}:
+    def tojson(self) -> dict:
         result = {}
         if self._neurons is not None:
             result["output"] = self._neurons
         result["activation"] = self._activation
         return result
+    
+    def getneurons(self):
+        return self._neurons
     
     # Print layer info
     def __str__(self):
@@ -21,14 +24,14 @@ class Layer:
         # if self._neurons is not None: 
         #     result += "output=" + str(self._neurons) + "\n"
         # result += "activation=" + self._activation + "\n"
-        return json.loads(self.tojson(), indent = 3)
+        return self.tojson()
 
 # Net(?)
 class Input(Layer):
-    label = "[net]"
-    def __init__(self, shape, batch_size, subdivisions = None, channels = None, momentum = None, decay = None, max_crop = None,
-                 learning_rate = None, policy = None, power = None, max_batches = None, angle = None,
-                 hue = None, saturation = None, exposure = None, aspect = None):
+    label = "net"
+    def __init__(self, shape, batch_size: int, subdivisions: int = None, channels: int = None, momentum: int = None, decay: int = None, max_crop: int = None,
+                 learning_rate: int = None, policy: int = None, power: int = None, max_batches: int = None, angle: int = None,
+                 hue: int = None, saturation: int = None, exposure: int = None, aspect: int = None):
         if isinstance(shape, (tuple, list)) and len(shape) == 2:
             self._height = shape[0]
             self._width = shape[1]
@@ -51,7 +54,7 @@ class Input(Layer):
         self._exposure = exposure
         self._aspect = aspect
 
-    def tojson(self) -> {}:
+    def tojson(self) -> dict:
         result = {"layer": "net"}
         #result = self.label + "\n"
         result["batch"] = self._batch_size #result += "batch=" + str(self._batch_size) + "\n"
@@ -74,7 +77,7 @@ class Input(Layer):
         return result
     
     def __str__(self):
-        return json.loads(self.tojson(), indent = 3)
+        return self.tojson()
         
 #####################################################
 # Layer-specific configuration is not complete yet! #
@@ -95,8 +98,8 @@ class Conv2D(Layer):
     @param dilation: Size of dilation (Default: 1)
     @param activation: Activation function after convolution (Default: Logistic)
     """
-    label = "[convolutional]"
-    def __init__(self, batch_normalize=0, filters=1, size=1, groups=1, stride=1, padding=0, pad=False, dilation=1, activation=act.Activation.LOGISTIC):
+    label = "convolutional"
+    def __init__(self, batch_normalize=0, filters=1, size=1, groups=1, stride=1, padding=0, pad=False, dilation=0, activation=act.Activation.LOGISTIC):
         super().__init__(activation = activation)
         self._batch_normalize = batch_normalize
         self._filters = filters
@@ -107,7 +110,7 @@ class Conv2D(Layer):
         self._pad = 1 if pad else 0
         self._dilation = dilation
     
-    def tojson(self) -> {}:
+    def tojson(self) -> dict:
         # result = super().__str__()
         # result += "batch_normalize=" + str(self._batch_normalize) + "\n"
         # result += "filters=" + str(self._filters) + "\n"
@@ -130,18 +133,18 @@ class Conv2D(Layer):
         return result
     
     def __str__(self):
-        return json.loads(self.tojson(), indent = 3)
+        return self.tojson()
 
 # Maxpool
 class MaxPooling2D(Layer):
-    label = "[maxpool]"
+    label = "maxpool"
 
     def __init__(self, size = 1, stride = 1, padding = 0):
         self._size = size
         self._stride = stride
         self._padding = padding
 
-    def tojson(self) -> {}:
+    def tojson(self) -> dict:
         # result = f"{self.label}\n"
         # result += f"size={self._size}\n"
         # result += f"stride={self._stride}\n"
@@ -149,59 +152,86 @@ class MaxPooling2D(Layer):
 
 # Avgpool
 class AveragePooling2D(Layer):
-    label = "[avgpool]"
+    label = "avgpool"
 
-    def tojson(self) -> {}:
-        pass
+    def __init__(self, size = 1, stride = 1, padding = 0):
+        self._size = size
+        self._stride = stride
+        self._padding = padding
+
+    def tojson(self) -> dict:
+        return {'layer': 'avgpool', 'size': self._size, 'stride': self._stride, 'padding': self._padding}
 
 # Dropout
 class Dropout(Layer):
-    label = "[dropout]"
+    label = "dropout"
 
     def __init__(self, probability: float):
         if not 0 < probability <= 1: raise AttributeError("probability out of bounds")
         self._probability = probability
     
-    def tojson(self) -> {}:
+    def tojson(self) -> dict:
         return {"layer" : "dropout", "probability": self._probability}
         #return f"{self.label}\nprobability={self._probability}\n"
     
     def __str__(self):
-        return json.loads(self.tojson(), indent = 3)
+        return self.tojson()
 
 # Connected
 class Dense(Layer):
-    label = "[connected]"
+    label = "connected"
 
-    def tojson(self) -> {}:
+    def tojson(self) -> dict:
         result = {"layer": "connected"}
         result.update(super().tojson())
         return result
 
 # Softmax
 class Softmax(Layer):
-    label = "[softmax]"
+    label = "softmax"
 
     def __init__(self, groups: int):
         self._groups = groups
 
-    def tojson(self) -> {}:
+    def tojson(self) -> dict:
         return {"layer": "softmax", "groups": self._groups}
         #return f"{self.label}\ngroups={self._groups}\n"
     
     def __str__(self):
-        return json.loads(self.tojson(), indent = 3)
+        return self.tojson()
 
 # Cost
 class Cost(Layer):
-    label = "[cost]"
+    label = "cost"
         
     def __init__(self, type = cost.CostFunction.SSE):
         self.cost = cost.CostFunction(type).value
     
-    def tojson(self) -> {}:
+    def tojson(self) -> dict:
         return {"layer" : "cost", "type": self.cost} #f"{self.label}\ntype={self.cost}\n"
     
     def __str__(self):
-        return json.loads(self.tojson(), indent = 3)
+        return self.tojson()
+    
+class Split(Layer):
+    label = "split"
+
+    def __init__(self, clients: list[str], server: str):
+        self.clients = clients
+        self.server = server
+        self.previouslayer = None
+        self.units = None
+        self.send = False 
+
+    def tojson(self) -> dict:
+        result = {'layer': 'split'}
+        result['previous'] = f'{self.previouslayer.label}'
+        result['clients'] = self.clients
+        result['server'] = self.server
+        result['send'] = self.send
+        if isinstance(self.previouslayer, (MaxPooling2D, AveragePooling2D)):
+            result['stride'] = 1
+        else: result['units'] = self.previouslayer._neurons
+        return result
+
         
