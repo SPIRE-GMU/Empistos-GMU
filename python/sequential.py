@@ -32,7 +32,11 @@ class Sequential:
         return json.dumps(result, indent = 3)
     
     def __str__(self):
-        return json.loads(self.tojson())
+        result = ''
+        for layer in self._layers:
+            result += f'{layer}\n'
+        return result
+        #return json.loads(self.tojson())
     
     def labels(self, labels: list[str]):
         self._labels = labels
@@ -45,11 +49,25 @@ class Sequential:
         return labels
         
     
-    def savemodel(self, name: str = "network", results: int = 3):
+    def savemodeljson(self, name: str = "network", results: int = 3):
         # if not name.endswith(".cfg"):
         #     name = f"{name}.cfg"
         with open(f"{name}.json", 'w') as f:
             f.write(self.tojson())
+        with open(f"{name}.dataset", 'w') as f:
+            f.write(f'classes = {self._layers[-2]._groups}\n')
+            f.write(f"train = train_{name}.list\n")
+            f.write(f'valid = test_{name}.list\n')
+            f.write(f'labels = labels_{name}.list\n')
+            f.write(f'names = names_{name}.list\n')
+            f.write(f'backup = models/{name}\n')
+            f.write(f'top = {results}\n')
+    
+    def savemodel(self, name: str = 'network', results: int = 3):
+        if not name.endswith(".cfg"):
+            name = f"{name}.cfg"
+        with open(name, 'w') as f:
+            f.write(str(self))
         with open(f"{name}.dataset", 'w') as f:
             f.write(f'classes = {self._layers[-2]._groups}\n')
             f.write(f"train = train_{name}.list\n")

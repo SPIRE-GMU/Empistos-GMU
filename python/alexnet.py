@@ -20,4 +20,4 @@ if __name__ == "__main__":
         layers.Cost(costfunction.CostFunction.SSE)
     ])
 
-    alexnet.savemodel("alexnet")
+    alexnet.savemodel("alexnet2")
