@@ -16,3 +16,9 @@ class Activation(Enum):
     HARDTAN = 'hardtan'
     LHTAN = 'lhtan'
     SELU = 'selu'
+
+    def __str__(self) -> str:
+        return self.value
+    
+    def json(self) -> str:
+        return str(self)
